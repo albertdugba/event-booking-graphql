@@ -1,6 +1,7 @@
 {
   "env": {
     "MONGO_USER": "albert",
-    "MONGO_PASSWORD": "mongoworld"
+    "MONGO_PASSWORD": "mongoworld",
+    "MONGODB_NAME": "react-graphql-app"
   }
 }
