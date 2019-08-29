@@ -1,13 +1,13 @@
 const express = require("express");
 const graphqlHTTP = require("express-graphql");
-const { buildSchema } = require("graphql");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
+const bycrypt = require("bcrypt");
+const { buildSchema } = require("graphql");
 
 const Event = require("./models/event");
 const User = require("./models/user");
 const app = express();
-
 app.use(bodyParser.json());
 
 app.use(
@@ -74,26 +74,50 @@ app.use(
           title: args.eventInput.title,
           description: args.eventInput.description,
           price: +args.eventInput.price,
-          date: new Date(args.eventInput.date)
+          date: new Date(args.eventInput.date),
+          creator: "5d6826cf398eb512dffe6d64"
         });
+
+        let createdEvent;
         return event
           .save()
           .then(result => {
-            console.log(result);
-            return { ...result._doc, _id: result.id };
+            createdEvent = { ...result._doc, _id: result._doc._id.toString() };
+            return User.findById("5d6826cf398eb512dffe6d64");
           })
+          .then(user => {
+            if (!user) {
+              throw new Error("User not found ");
+            }
+            user.createdEvents.push(event);
+            return user.save();
+          })
+          .then(result => {
+            return createdEvent;
+          })
+
           .catch(err => {
             throw console.error(err);
           });
       },
       createUser: args => {
-        const user = new User({
-          email: args.userInput.email,
-          password: args.userInput.password
-        });
-        return user
-          .save()
-          .then()
+        return User.findOne({ email: args.userInput.email })
+          .then(user => {
+            if (user) {
+              throw new Error("User exist already ");
+            }
+            return bycrypt.hash(args.userInput.password, 12);
+          })
+          .then(hashedPassword => {
+            const user = new User({
+              email: args.userInput.email,
+              password: hashedPassword
+            });
+            return user.save();
+          })
+          .then(result => {
+            return { ...result._doc, _id: result.id };
+          })
           .catch(err => {
             throw err;
           });
@@ -107,7 +131,8 @@ const PORT = 5000;
 
 mongoose
   .connect(
-    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0-sayil.mongodb.net/${process.env.MONGODB_NAME}?retryWrites=true&w=majority`
+    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0-sayil.mongodb.net/${process.env.MONGODB_NAME}?retryWrites=true&w=majority`,
+    { useNewUrlParser: true }
   )
   .then(
     app.listen(PORT, () => console.log(`Database is connected on port:${PORT}`))
