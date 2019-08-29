@@ -5,9 +5,8 @@ const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 
 const Event = require("./models/event");
+const User = require("./models/user");
 const app = express();
-
-const events = [];
 
 app.use(bodyParser.json());
 
@@ -24,6 +23,17 @@ app.use(
       date:String!
     }
 
+    type User{
+      _id:String!
+      email:String!
+      password:String
+    }
+
+    input UserInput{
+      email:String!
+      password:String!
+    }
+
     input EventInput{
       title:String!
       description:String!
@@ -37,6 +47,7 @@ app.use(
     },
     type RootMutation{
       createEvent(eventInput:EventInput):Event
+      createUser(userInput:UserInput):User
 
     }
 
@@ -47,22 +58,45 @@ app.use(
 
     `),
     rootValue: {
-      events: args => {
-        return events;
+      events: () => {
+        return Event.find()
+          .then(events => {
+            return events.map(event => {
+              return { ...event._doc, _id: event.id };
+            });
+          })
+          .catch(err => {
+            throw err;
+          });
       },
       createEvent: args => {
-        // const event = {
-
-        // };
         const event = new Event({
-          _id: Math.random().toString(),
           title: args.eventInput.title,
           description: args.eventInput.description,
           price: +args.eventInput.price,
           date: new Date(args.eventInput.date)
         });
-        events.push(event);
-        return event;
+        return event
+          .save()
+          .then(result => {
+            console.log(result);
+            return { ...result._doc, _id: result.id };
+          })
+          .catch(err => {
+            throw console.error(err);
+          });
+      },
+      createUser: args => {
+        const user = new User({
+          email: args.userInput.email,
+          password: args.userInput.password
+        });
+        return user
+          .save()
+          .then()
+          .catch(err => {
+            throw err;
+          });
       }
     },
     graphiql: true
